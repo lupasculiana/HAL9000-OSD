@@ -12,7 +12,8 @@
 
 #define TID_INCREMENT               4
 
-#define THREAD_TIME_SLICE           1
+//When a thread is created, it should have a time quantum of 4 ticks.
+#define THREAD_TIME_SLICE           4
 
 extern void ThreadStart();
 
@@ -414,7 +415,8 @@ ThreadCreateEx(
     }
 
     *Thread = pThread;
-
+    pThread->TimeSliceQuantum = THREAD_TIME_SLICE;
+   
     return status;
 }
 
@@ -440,7 +442,12 @@ ThreadTick(
     }
     pThread->TickCountCompleted++;
 
-    if (++pCpu->ThreadData.RunningThreadTicks >= THREAD_TIME_SLICE)
+    if (pThread->TickCountCompleted == 16)
+    {
+        pThread->TimeSliceQuantum = 2;
+    }
+
+    if (++pCpu->ThreadData.RunningThreadTicks >= pThread->TimeSliceQuantum)
     {
         LOG_TRACE_THREAD("Will yield on return\n");
         pCpu->ThreadData.YieldOnInterruptReturn = TRUE;
@@ -558,9 +565,13 @@ ThreadExit(
         LockRelease(&pThread->BlockLock, INTR_OFF);
     }
 
+    QWORD timeQuantaAllocated = pThread->TickCountCompleted;
+
     pThread->State = ThreadStateDying;
     pThread->ExitStatus = ExitStatus;
     ExEventSignal(&pThread->TerminationEvt);
+
+    LOG_TRACE_THREAD("Thread [ID=%d] was allocated %lld time quanta\n", pThread->Id, timeQuantaAllocated);
 
     ProcessNotifyThreadTermination(pThread);
 
@@ -1147,6 +1158,8 @@ _ThreadForcedExit(
     PTHREAD pCurrentThread = GetCurrentThread();
 
     _InterlockedOr( &pCurrentThread->Flags, THREAD_FLAG_FORCE_TERMINATED );
+
+    LOG_INFO_THREAD("Thread [ID=%u] was allocated %llu time quanta", pCurrentThread->Id, pCurrentThread->TickCountCompleted);
 
     ThreadExit(STATUS_JOB_INTERRUPTED);
     NOT_REACHED;

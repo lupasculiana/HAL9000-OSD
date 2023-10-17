@@ -12,6 +12,7 @@ set PATH_TO_VM_DISK=__EMPTY__
 set PATH_TO_VM_TOOLS=__EMPTY__
 set VOL_MOUNT_LETTER=__EMPTY__
 
+if _%COMPUTERNAME%_==_DESKTOP-53JP41B_ goto config_DESKTOP-53JP41B
 if _%COMPUTERNAME%_==_AGURZOU-DEV-PC_ goto config_AGURZOU-DEV
 if _%COMPUTERNAME%_==_ALEX-PC_ goto config_ALEX-PC
 if _%COMPUTERNAME%_==_AGURZOU-LPT_ goto config_AGURZOU-LPT
@@ -67,6 +68,15 @@ set PXE_PATH2=pxe-GRZ
 
 set BOCHS_PATH="c:\Program Files (x86)\Bochs-2.6.8\"
 
+goto end
+
+:config_DESKTOP-53JP41B
+
+SET PATH_TO_VIX_TOOLS="C:\Program Files (x86)\VMware\VMware Workstation"
+SET PATH_TO_VM_FILE="C:\Users\HP\OneDrive\Desktop\os2\HAL9000\VM\HAL9000_VM\HAL9000.vmx"
+SET PATH_TO_LOG_FILE="C:\Users\HP\OneDrive\Desktop\os2\HAL9000\VM\HAL9000_VM\HAL9000.log"
+SET PATH_TO_VM_DISK="C:\Users\HP\OneDrive\Desktop\os2\HAL9000\VM\HAL9000_VM\HAL9000.vmdk"
+SET PXE_PATH="C:\Users\HP\OneDrive\Desktop\os2\HAL9000\PXE"
 goto end
 
 :end

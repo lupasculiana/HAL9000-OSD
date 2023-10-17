@@ -76,6 +76,9 @@ typedef struct _THREAD
     // ticks, i.e. by yielding or by blocking
     QWORD                   TickCountEarly;
 
+    //When a thread is created, it should have a time quantum of 4 ticks.
+    QWORD                   TimeSliceQuantum;
+
     // The highest valid address for the kernel stack (its initial value)
     PVOID                   InitialStackBase;
 
