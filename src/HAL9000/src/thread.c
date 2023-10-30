@@ -10,7 +10,7 @@
 #include "gdtmu.h"
 #include "pe_exports.h"
 
-#define TID_INCREMENT               4
+#define TID_INCREMENT               8
 
 //When a thread is created, it should have a time quantum of 4 ticks.
 #define THREAD_TIME_SLICE           4
@@ -327,6 +327,7 @@ ThreadCreateEx(
     ASSERT(NULL != pCpu);
 
     status = _ThreadInit(Name, Priority, &pThread, TRUE);
+  
     if (!SUCCEEDED(status))
     {
         LOG_FUNC_ERROR("_ThreadInit", status);
@@ -415,9 +416,41 @@ ThreadCreateEx(
     }
 
     *Thread = pThread;
-    pThread->TimeSliceQuantum = THREAD_TIME_SLICE;
+
+    //update number of active children
+    GetCurrentThread()->NumberOfChildrenCreated++;
+    _InterlockedIncrement(&GetCurrentThread()->NumberOfActiveChildren);
+    LOG(" Thread [ID =%d] is the %d th thread created by thread [ID =%d] on CPU [%d]",
+        pThread->Id, GetCurrentThread()->NumberOfChildrenCreated,
+        pThread->ParentId,
+        pThread->CreationCpuApicId
+    );
    
     return status;
+}
+
+PTHREAD _ThreadReferenceByTid(TID Tid) {
+    // declarations
+    PLIST_ENTRY pListEntry;
+    INTR_STATE oldState;
+    PTHREAD pThread;
+
+    LockAcquire(&m_threadSystemData.AllThreadsLock, &oldState);
+    pListEntry = m_threadSystemData.AllThreadsList.Flink;
+
+    while (pListEntry != &m_threadSystemData.AllThreadsList)
+    {
+        pThread = CONTAINING_RECORD(pListEntry, THREAD, AllList);
+        if (pThread->Id == Tid)
+        {
+            _ThreadReference(pThread);
+            LockRelease(&m_threadSystemData.AllThreadsLock, oldState);
+            return pThread;
+        }
+        pListEntry = pListEntry->Flink;
+    }
+    LockRelease(&m_threadSystemData.AllThreadsLock, oldState);
+    return NULL;
 }
 
 void
@@ -446,9 +479,11 @@ ThreadTick(
     {
         pThread->TimeSliceQuantum = 2;
     }
+    //LOG("Thread %d ticked %d times", pThread->Id, pThread->TickCountCompleted);
 
-    if (++pCpu->ThreadData.RunningThreadTicks >= pThread->TimeSliceQuantum)
+    if (++pCpu->ThreadData.RunningThreadTicks >= THREAD_TIME_SLICE)
     {
+        pThread->AllocatedQuanta++;
         LOG_TRACE_THREAD("Will yield on return\n");
         pCpu->ThreadData.YieldOnInterruptReturn = TRUE;
     }
@@ -552,11 +587,31 @@ ThreadExit(
     )
 {
     PTHREAD pThread;
+    PTHREAD pParent;
     INTR_STATE oldState;
 
     LOG_FUNC_START_THREAD;
 
     pThread = GetCurrentThread();
+    pParent = _ThreadReferenceByTid(pThread->ParentId);
+
+    if (pParent->Id == 0) 
+    {
+        LOG(" Thread [ID =%d] created on CPU [ID =%d] is finishing on CPU [ID =%d], while it’s parent thread is already destroyed !",
+            pThread->Id, pThread->CreationCpuApicId, GetCurrentPcpu()->ApicId );
+        _ThreadDereference(pParent);
+    }
+    else 
+    {
+        _InterlockedDecrement(&pParent->NumberOfActiveChildren);
+        LOG(" Thread [ID =%d] created on CPU [ID =%d] is finishing on CPU [ID =%d], while it’s parent thread [ID =%d] still has more %d child threads ",
+            pThread->Id, pThread->CreationCpuApicId, GetCurrentPcpu()->ApicId,
+            pThread->ParentId, pParent->NumberOfActiveChildren
+            );
+        _ThreadDereference(pParent);
+    }
+
+    LOG("Thread [ID=%d] was allocated %d time quanta\n", pThread->Id, pThread->AllocatedQuanta);
 
     CpuIntrDisable();
 
@@ -565,13 +620,11 @@ ThreadExit(
         LockRelease(&pThread->BlockLock, INTR_OFF);
     }
 
-    QWORD timeQuantaAllocated = pThread->TickCountCompleted;
-
     pThread->State = ThreadStateDying;
     pThread->ExitStatus = ExitStatus;
     ExEventSignal(&pThread->TerminationEvt);
 
-    LOG_TRACE_THREAD("Thread [ID=%d] was allocated %lld time quanta\n", pThread->Id, timeQuantaAllocated);
+   
 
     ProcessNotifyThreadTermination(pThread);
 
@@ -628,7 +681,7 @@ ThreadTerminate(
     )
 {
     ASSERT( NULL != Thread );
-
+   
     // it's not a problem if the thread already finished
     _InterlockedOr(&Thread->Flags, THREAD_FLAG_FORCE_TERMINATE_PENDING );
 }
@@ -804,6 +857,20 @@ _ThreadInit(
         pThread->Id = _ThreadSystemGetNextTid();
         pThread->State = ThreadStateBlocked;
         pThread->Priority = Priority;
+
+        //Store the ID of the current CPU
+        pThread->CreationCpuApicId = GetCurrentPcpu()->ApicId;
+
+        //initialize parent id & nr of children
+        PTHREAD currentThread = GetCurrentThread();
+        pThread->ParentId = currentThread ? currentThread->Id : 0;
+      
+        pThread->NumberOfActiveChildren = 0;
+        pThread->NumberOfChildrenCreated = 0;
+
+        //initialize time slice quantum
+        pThread->TimeSliceQuantum = THREAD_TIME_SLICE;
+        pThread->AllocatedQuanta = 0;
 
         LockInit(&pThread->BlockLock);
 
@@ -1159,8 +1226,6 @@ _ThreadForcedExit(
 
     _InterlockedOr( &pCurrentThread->Flags, THREAD_FLAG_FORCE_TERMINATED );
 
-    LOG_INFO_THREAD("Thread [ID=%u] was allocated %llu time quanta", pCurrentThread->Id, pCurrentThread->TickCountCompleted);
-
     ThreadExit(STATUS_JOB_INTERRUPTED);
     NOT_REACHED;
 }
@@ -1183,7 +1248,29 @@ _ThreadDereference(
     )
 {
     ASSERT( NULL != Thread );
+    PTHREAD pThread;
+    PTHREAD pParent;
 
+    pThread = GetCurrentThread();
+    pParent = _ThreadReferenceByTid(pThread->ParentId);
+
+    if (pParent->Id == 0)
+    {
+        LOG(" Thread [ID =%d] created on CPU [ID =%d] is finishing on CPU [ID =%d], while it’s parent thread is already destroyed !",
+            pThread->Id, pThread->CreationCpuApicId, GetCurrentPcpu()->ApicId);
+        RfcDereference(&pParent->RefCnt);
+    }
+    else
+    {
+        _InterlockedDecrement(&pParent->NumberOfActiveChildren);
+        LOG(" Thread [ID =%d] created on CPU [ID =%d] is finishing on CPU [ID =%d], while it’s parent thread [ID =%d] still has more %d child threads ",
+            pThread->Id, pThread->CreationCpuApicId, GetCurrentPcpu()->ApicId,
+            pThread->ParentId, pParent->NumberOfActiveChildren
+        );
+        RfcDereference(&pParent->RefCnt);
+    }
+
+    LOG("Thread [ID=%d] was allocated %d time quanta\n", pThread->Id, pThread->AllocatedQuanta);
     RfcDereference(&Thread->RefCnt);
 }
 
@@ -1203,7 +1290,7 @@ _ThreadDestroy(
     LockAcquire(&m_threadSystemData.AllThreadsLock, &oldState);
     RemoveEntryList(&pThread->AllList);
     LockRelease(&m_threadSystemData.AllThreadsLock, oldState);
-
+      
     // This must be done before removing the thread from the process list, else
     // this may be the last thread and the process VAS will be freed by the time
     // ProcessRemoveThreadFromList - this function also dereferences the process

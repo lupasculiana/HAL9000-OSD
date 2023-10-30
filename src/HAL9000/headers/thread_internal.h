@@ -40,6 +40,13 @@ typedef struct _THREAD
     TID                     Id;
     char*                   Name;
 
+    //ID of parent thread
+    TID                     ParentId;
+
+    //for thread as a parent
+    DWORD                   NumberOfChildrenCreated;
+    DWORD                   NumberOfActiveChildren;
+
     // Currently the thread priority is not used for anything
     THREAD_PRIORITY         Priority;
     THREAD_STATE            State;
@@ -79,6 +86,9 @@ typedef struct _THREAD
     //When a thread is created, it should have a time quantum of 4 ticks.
     QWORD                   TimeSliceQuantum;
 
+    //Amount of quanta allocated
+    QWORD                   AllocatedQuanta;
+
     // The highest valid address for the kernel stack (its initial value)
     PVOID                   InitialStackBase;
 
@@ -91,6 +101,9 @@ typedef struct _THREAD
 
     // MUST be non-NULL for all threads which belong to user-mode processes
     PVOID                   UserStack;
+
+    //ID of the current CPU that the thread was created on
+    APIC_ID                 CreationCpuApicId;
 
     struct _PROCESS*        Process;
 } THREAD, *PTHREAD;

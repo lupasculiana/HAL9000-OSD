@@ -121,8 +121,9 @@ _CpuMuCollectExtendedInformation(
 typedef struct _DUMMY_THREAD
 {
     REF_COUNT               RefCnt;
-
+   
     struct _THREAD* Self;
+
 } DUMMY_THREAD;
 static_assert(sizeof(DUMMY_THREAD) == FIELD_OFFSET(THREAD, Id) && FIELD_OFFSET(DUMMY_THREAD, Self) == FIELD_OFFSET(THREAD, Self),
     "Safety measure, if someone modified the THREAD structure we may need to modify this DUMMY_THREAD as well");
