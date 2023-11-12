@@ -73,10 +73,12 @@ goto end
 :config_DESKTOP-53JP41B
 
 SET PATH_TO_VIX_TOOLS="C:\Program Files (x86)\VMware\VMware Workstation"
-SET PATH_TO_VM_FILE="C:\Users\HP\OneDrive\Desktop\os2\HAL9000\VM\HAL9000_VM\HAL9000.vmx"
-SET PATH_TO_LOG_FILE="C:\Users\HP\OneDrive\Desktop\os2\HAL9000\VM\HAL9000_VM\HAL9000.log"
 SET PATH_TO_VM_DISK="C:\Users\HP\OneDrive\Desktop\os2\HAL9000\VM\HAL9000_VM\HAL9000.vmdk"
 SET PXE_PATH="C:\Users\HP\OneDrive\Desktop\os2\HAL9000\PXE"
+SET PATH_TO_VM_FILE="C:\Users\HP\OneDrive\Desktop\os2\HAL9000\VM\HAL9000_VM\HAL9000.vmx"
+SET PATH_TO_VM_TOOLS="C:\Program Files (x86)\VMware\VMware Virtual Disk Development Kit"
+SET PATH_TO_LOG_FILE="C:\Users\HP\OneDrive\Desktop\os2\HAL9000\VM\HAL9000_VM\HAL9000.log"
+SET VOL_MOUNT_LETTER="Q:"
 goto end
 
 :end
