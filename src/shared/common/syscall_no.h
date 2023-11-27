@@ -10,6 +10,8 @@ typedef enum _SYSCALL_ID
     SyscallIdThreadGetTid,
     SyscallIdThreadWaitForTermination,
     SyscallIdThreadCloseHandle,
+    SyscallIdGetThreadPriority,
+    SyscallIdSetThreadPriority,
 
     // Process Management
     SyscallIdProcessExit,
@@ -17,10 +19,16 @@ typedef enum _SYSCALL_ID
     SyscallIdProcessGetPid,
     SyscallIdProcessWaitForTermination,
     SyscallIdProcessCloseHandle,
+    SyscallIdProcessGetName,
+    SyscallIdGetNumberOfThreadsForCurrentProcess,
 
     // Memory management 
     SyscallIdVirtualAlloc,
     SyscallIdVirtualFree,
+
+    //Cpu management
+    SyscallIdGetCurrentCpuId,
+    SyscallIdGetCpuUtilization,
 
     // File management
     SyscallIdFileCreate,

@@ -306,3 +306,79 @@ SyscallFileWrite(
     IN  QWORD                       BytesToWrite,
     OUT QWORD*                      BytesWritten
     );
+
+// SyscallIdProcessGetName
+// ******************************************************************************
+// Function : SyscallProcessGetName
+// Description : Copy at the given address the calling process ’ name .
+// Returns : STATUS
+// Parameter : IN QWORD ProcessNameMaxLen
+// Parameter : OUT char * ProcessName
+// *****************************
+STATUS
+SyscallProcessGetName(
+    IN QWORD ProcessNameMaxLen,
+    OUT char* ProcessName
+    );
+
+// SyscallIdGetThreadPriority
+// ******************************************************************************
+// Function : SyscallGetThreadPriority
+// Description : Return the priority of the current thread .
+// Returns : STATUS
+// Parameter : OUT BYTE* ThreadPriority
+// *****************************
+STATUS
+SyscallGetThreadPriority(
+    OUT BYTE* ThreadPriority
+);
+
+// SyscallIdSetThreadPriority
+// ******************************************************************************
+// Function : SyscallSetThreadPriority
+// Description : Set the priority of the current thread
+// Returns : STATUS
+// Parameter : IN BYTE ThreadPriority
+// *****************************
+STATUS
+SyscallSetThreadPriority(
+    IN BYTE ThreadPriority
+);
+
+// SyscallIdGetCurrentCpuId
+// ******************************************************************************
+// Function : SyscallGetCurrentCpuId
+// Description : Return the ID of the CPU the current thread is executing on
+// Returns : STATUS
+// Parameter : OUT BYTE* CpuId
+// *****************************
+STATUS
+SyscallGetCurrentCpuId(
+    OUT BYTE* CpuId
+);
+
+// SyscallIdGetNumberOfThreadsForCurrentProcess
+// ******************************************************************************
+// Function : SyscallGetNumberOfThreadsForCurrentProcess
+// Description : Return the total number of threads started by the current process
+// Returns : STATUS
+// Parameter : OUT BYTE* CpuId
+// *****************************
+STATUS
+SyscallGetNumberOfThreadsForCurrentProcess(
+    OUT QWORD* ThreadNo
+);
+
+// SyscallIdGetCPUUtilization
+// ******************************************************************************
+// Function : SyscallGetCPUUtilization
+// Description : Return the current utilization of a given CPU, or the average of all CPUs if CpuId is NULL
+// Returns : STATUS
+// Parameter : IN_OPT BYTE* CpuId
+// Parameter : OUT BYTE* Utilization
+// *****************************
+STATUS
+SyscallGetCpuUtilization(
+    IN_OPT BYTE* CpuId,
+    OUT BYTE* Utilization
+);

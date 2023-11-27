@@ -196,3 +196,62 @@ SyscallFileWrite(
 {
     return SyscallEntry(SyscallIdFileWrite, FileHandle, Buffer, BytesToWrite, BytesWritten);
 }
+
+// SyscallIdProcessGetName
+STATUS
+SyscallProcessGetName(
+    IN QWORD ProcessNameMaxLen,
+    OUT char* ProcessName
+)
+{
+    return SyscallEntry(SyscallIdProcessGetName, ProcessNameMaxLen, ProcessName);
+}
+
+// SyscallIdGetThreadPriority
+STATUS
+SyscallGetThreadPriority(
+    OUT BYTE* ThreadPriority
+)
+{
+    return SyscallEntry(SyscallIdGetThreadPriority, ThreadPriority);
+}
+
+// SyscallIdSetThreadPriority
+STATUS
+SyscallSetThreadPriority(
+    IN BYTE ThreadPriority
+)
+{
+    return SyscallEntry(SyscallIdSetThreadPriority, ThreadPriority);
+}
+
+
+// SyscallIdGetCurrentCpuId
+STATUS
+SyscallGetCurrentCpuId(
+    OUT BYTE* CpuId
+)
+{
+    return SyscallEntry(SyscallIdGetCurrentCpuId, CpuId);
+}
+
+
+// SyscallIdGetNumberOfThreadsForCurrentProcess
+STATUS
+SyscallGetNumberOfThreadsForCurrentProcess(
+    OUT QWORD* ThreadNo
+)
+{
+    return SyscallEntry(SyscallIdGetNumberOfThreadsForCurrentProcess, ThreadNo);
+}
+
+
+// SyscallIdGetCpuUtilization
+STATUS
+SyscallGetCpuUtilization(
+    IN_OPT BYTE* CpuId,
+    OUT BYTE* Utilization
+)
+{
+    return SyscallEntry(SyscallIdGetCpuUtilization, CpuId, Utilization);
+}

@@ -13,6 +13,7 @@ __main(
     STATUS status;
     TID tid;
     PID pid;
+    char* processName = " ";
     UM_HANDLE umHandle;
 
     LOG("Hello from your usermode application!\n");
@@ -24,6 +25,90 @@ __main(
         LOG("Argument[%u] is at 0x%X\n", i, argv[i]);
         LOG("Argument[%u] is %s\n", i, argv[i]);
     }
+
+    //1
+    
+   status = SyscallProcessGetName(1, processName);
+    if (!SUCCEEDED(status))
+    {
+        LOG_FUNC_ERROR("SyscallProcessGetName", status);
+        return status;
+    }
+
+    LOG("TEST1 CASE 1 Process' name is : %s\n", &processName);
+
+    status = SyscallProcessGetName(3, processName);
+    if (!SUCCEEDED(status))
+    {
+        LOG_FUNC_ERROR("SyscallProcessGetName", status);
+        return status;
+    }
+
+    LOG("TEST1 CASE 2 Process' name is : %s\n", &processName);
+
+    status = SyscallProcessGetName(0x1234, processName);
+    if (!SUCCEEDED(status))
+    {
+        LOG_FUNC_ERROR("SyscallProcessGetName", status);
+        return status;
+    }
+
+    LOG("TEST1 CASE 3 Process' name is : %s\n", &processName);
+
+    //2
+
+    BYTE* currentPriority = 0;
+    status = SyscallGetThreadPriority(currentPriority);
+    if (!SUCCEEDED(status))
+    {
+        LOG_FUNC_ERROR("SyscallGetThreadPriority", status);
+        return status;
+    }
+    LOG("TEST2 current thread's priority is : %d", &currentPriority);
+    
+    status = SyscallSetThreadPriority(16);
+    if (!SUCCEEDED(status))
+    {
+        LOG_FUNC_ERROR("SyscallSetThreadPriority", status);
+        return status;
+    }
+    LOG("TEST2 current thread's priority after changing is : %d", &currentPriority);
+
+    //3
+    QWORD* threadCount = 0;
+    BYTE* cpuId = 0;
+    status = SyscallGetNumberOfThreadsForCurrentProcess(threadCount);
+    if (!SUCCEEDED(status))
+    {
+        LOG_FUNC_ERROR("SyscallGetNumberOfThreadsForCurrentProcess", status);
+        return status;
+    }
+    status = SyscallGetCurrentCpuId(cpuId);
+    if (!SUCCEEDED(status))
+    {
+        LOG_FUNC_ERROR("SyscallGetCurrentCpuId", status);
+        return status;
+    }
+    LOG("TEST3 current cpu's id and the number of threads started by it is : %d, %d", &threadCount, &cpuId);
+
+    //4
+    BYTE* cpuUtilization = 0;
+    BYTE* id = (BYTE*)1;
+    status = SyscallGetCpuUtilization(id, cpuUtilization);
+    if (!SUCCEEDED(status))
+    {
+        LOG_FUNC_ERROR("SyscallGetCpuUtilization", status);
+        return status;
+    }
+    LOG("TEST4 current cpu's utilization %d", &cpuUtilization);
+
+    status = SyscallGetCpuUtilization(NULL, cpuUtilization);
+    if (!SUCCEEDED(status))
+    {
+        LOG_FUNC_ERROR("SyscallGetCpuUtilization", status);
+        return status;
+    }
+    LOG("TEST4 average cpus' utilization : %d", &cpuUtilization);
 
     status = SyscallProcessGetPid(UM_INVALID_HANDLE_VALUE, &pid);
     if (!SUCCEEDED(status))

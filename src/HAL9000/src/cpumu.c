@@ -28,6 +28,7 @@ typedef struct _CPUMU_DATA
     CPUID_EXTENDED_STATE_ENUMERATION_MAIN_LEAF      ExtendedStateMainLeaf;
 } CPUMU_DATA, *PCPMU_DATA;
 
+
 static CPUMU_DATA m_cpuMuData;
 
 static

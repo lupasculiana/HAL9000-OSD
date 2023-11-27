@@ -55,7 +55,7 @@ typedef struct _ACPI_INTERFACE_DATA
     LIST_ENTRY                  IntOverrideList;
     LIST_ENTRY                  McfgList;
     LIST_ENTRY                  PrtList;
-} ACPI_INTERFACE_DATA, *PACPI_INTERFACE_DATA;
+} ACPI_INTERFACE_DATA, * PACPI_INTERFACE_DATA;
 
 static ACPI_INTERFACE_DATA      m_acpiData;
 
@@ -271,6 +271,26 @@ AcpiRetrieveNextCpu(
     *AcpiEntry = &pEntry->Data;
 
     return STATUS_SUCCESS;
+}
+
+PPCPU _CpuReferenceById(APIC_ID ApicId) {
+    // declarations
+    PLIST_ENTRY pListEntry;
+    PPCPU pCpu;
+
+    pListEntry = m_acpiData.CpuList.Flink;
+
+    while (pListEntry != &m_acpiData.CpuList)
+    {
+        pCpu = CONTAINING_RECORD(pListEntry, PCPU, ListEntry);
+        if (pCpu->ApicId == ApicId)
+        {
+
+            return pCpu;
+        }
+        pListEntry = pListEntry->Flink;
+    }
+    return NULL;
 }
 
 STATUS
