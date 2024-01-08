@@ -87,23 +87,31 @@ SyscallHandler(
                 (PVOID)pSyscallParameters[1],
                 (QWORD)pSyscallParameters[2],
                 (QWORD*)pSyscallParameters[3]);
+            break;
         case SyscallIdThreadGetTid:
             status = SyscallThreadGetTid((UM_HANDLE)pSyscallParameters[0],
                 (TID*)pSyscallParameters[1]);
+            break;
         case SyscallIdProcessGetName:
             status = SyscallProcessGetName((QWORD)pSyscallParameters[0],
                 (char*)pSyscallParameters[1]);
+            break;
         case SyscallIdGetThreadPriority:
             status = SyscallGetThreadPriority((BYTE*)pSyscallParameters[0]);
+            break;
         case SyscallIdSetThreadPriority:
             status = SyscallSetThreadPriority((BYTE)pSyscallParameters[0]);
+            break;
         case SyscallIdGetCurrentCpuId:
             status = SyscallGetCurrentCpuId((BYTE*)pSyscallParameters[0]);
+            break;
         case SyscallIdGetNumberOfThreadsForCurrentProcess:
             status = SyscallGetNumberOfThreadsForCurrentProcess((QWORD*)pSyscallParameters[0]);
+            break;
         case SyscallIdGetCpuUtilization:
             status = SyscallGetCpuUtilization((BYTE*)pSyscallParameters[0],
                 (BYTE*)pSyscallParameters[1]);
+            break;
         default:
             LOG_ERROR("Unimplemented syscall called from User-space!\n");
             status = STATUS_UNSUPPORTED;
@@ -259,10 +267,6 @@ SyscallProcessGetName(
     {
         return STATUS_INVALID_PARAMETER2;
     }
-
-    //strncpy(ProcessName, process->ProcessName, ProcessNameMaxLen);
-    //ProcessName[sizeof(ProcessName) - 1] = '\0';
-
     int result = 0;
     result = snprintf(ProcessName, (DWORD) ProcessNameMaxLen, "%s", process->ProcessName);
     if (result < 0) {
