@@ -1,0 +1,18 @@
+Userprog :
+(all exercises are also commented in the code with Userprog.1, Userprog.2, etc.)
+1. - changes made in thread.c and syscall.c
+2. - changes made in syscall.c
+3. - changes made in isr.c in _IsrExceptionHandler
+4. - changes made in syscall_no.h, syscall_func.h, syscall_if.c, syscall.c
+5. - changes made in process_internal.h, process.c (in ProcessTerminate), syscall.c
+6. - changes made in syscall_no.h, syscall_func.h, syscall_if.c, syscall.c
+7. - changes made in syscall_no.h, syscall_func.h, syscall_if.c, syscall.c
+- tested all the syscalls AppHelloWorld
+
+Threads:
+(all exercises are also commented in the code with Threads.1, Threads.2, etc.)
+1. - changes made in thread.c
+2. - changes made in thread_internal.h, thread.c
+3. - changes made in thread_internal.h, thread.c, cmd_thread_helper.c
+4. - changes made in thread_internal.h, thread.c, cmd_thread_helper.h, cmd_thread_helper.c, 
+8. - changes made in cpumu.c, thread.c in ThreadSystemInitIdleForCurrentCPU and _ThreadSchedule

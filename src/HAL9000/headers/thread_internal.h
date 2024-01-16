@@ -41,7 +41,11 @@ typedef struct _THREAD
     char*                   Name;
 
     //ID of parent thread
+    //Threads.3
     TID                     ParentId;
+
+    //Threads.2
+    DWORD                   TimesYielded;
 
     //for thread as a parent
     DWORD                   NumberOfChildrenCreated;
@@ -63,6 +67,12 @@ typedef struct _THREAD
 
     // List of all the threads in the system (including those blocked or dying)
     LIST_ENTRY              AllList;
+
+    LOCK                    AllChildrenLock;
+
+    //Threads.3 - list of children created by the thread
+    _Guarded_by_(AllChildrenLock)
+    LIST_ENTRY              ChildrenList;
 
     // List of the threads ready to run
     LIST_ENTRY              ReadyList;
@@ -104,6 +114,14 @@ typedef struct _THREAD
 
     //ID of the current CPU that the thread was created on
     APIC_ID                 CreationCpuApicId;
+
+    //Threads.4
+    //All existing threads in the system
+    DWORD                   AllThreadsNumber;
+    //All ready threads in the system
+    DWORD                   ReadyThreadsNumber;
+    //All blocked threads in the system
+    DWORD                   BlockedThreadsNumber;
 
     struct _PROCESS*        Process;
 } THREAD, *PTHREAD;

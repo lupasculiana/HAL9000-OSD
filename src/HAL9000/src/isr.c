@@ -79,6 +79,7 @@ IsrCommonHandler(
     }
 }
 
+//Userprog.3 - " Modify the exception handler code such that an exception generated in a user-application does not crash the kernel."
 static
 void
 _IsrExceptionHandler(
@@ -99,6 +100,15 @@ _IsrExceptionHandler(
     // now even if we don't have an error code
     // our ISRs push a zero on the stack
     ASSERT(NULL != StackPointer);
+
+    BOOLEAN isUserMode;
+
+    isUserMode = GdtIsSegmentPrivileged((const WORD)StackPointer->Registers.CS);
+
+    if (!isUserMode)
+    {
+        ProcessTerminate(NULL);
+    }
 
     if (ErrorCodeAvailable)
     {

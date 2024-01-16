@@ -38,6 +38,12 @@ typedef struct _PROCESS
     _Guarded_by_(ThreadListLock)
     LIST_ENTRY                      ThreadList;
 
+    //Userprog.5
+    LOCK                            ChildrenListLock;
+
+    _Guarded_by_(ChildrenListLock)
+    LIST_ENTRY                      ChildrenList;
+
     _Guarded_by_(ThreadListLock)
     volatile DWORD                  NumberOfThreads;
 

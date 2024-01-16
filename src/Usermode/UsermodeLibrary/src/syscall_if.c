@@ -255,3 +255,73 @@ SyscallGetCpuUtilization(
 {
     return SyscallEntry(SyscallIdGetCpuUtilization, CpuId, Utilization);
 }
+
+//Userprog.4
+//SyscallIdMemset
+STATUS
+SyscallMemset(
+    OUT_WRITES(BytesToWrite)    PBYTE   Address,
+    IN                          DWORD   BytesToWrite,
+    IN                          BYTE    ValueToWrite
+)
+{
+    return SyscallEntry(SyscallIdMemset, Address, BytesToWrite, ValueToWrite);
+}
+
+//Userprog.6
+//SyscallIdDisableSyscalls
+STATUS
+SyscallDisableSyscalls(
+    IN      BOOLEAN     Disable
+)
+{
+   return SyscallEntry(SyscallIdMemset, Disable);
+}
+
+//Userprog.7
+//SyscallIdGetGlobalVariable
+STATUS
+SyscallGetGlobalVariable(
+    IN_READS_Z(VarLength)           char* VariableName,
+    IN                              DWORD   VarLength,
+    OUT                             PQWORD  Value
+)
+{
+    return SyscallEntry(SyscallIdGetGlobalVariable, VarLength, Value);
+}
+
+//SyscallIdGetGlobalVariable
+STATUS
+SyscallSetGlobalVariable(
+    IN_READS_Z(VarLength)           char* VariableName,
+    IN                              DWORD   VarLength,
+    IN                              QWORD   Value
+)
+{
+    return SyscallEntry(SyscallIdGetGlobalVariable, VariableName, VarLength, Value);
+}
+
+//Userprog.8
+STATUS
+SyscallMutexInit(
+    OUT         UM_HANDLE* Mutex
+)
+{
+    return SyscallEntry(SyscallIdGetGlobalVariable, Mutex);
+}
+
+STATUS
+SyscallMutexAcquire(
+    IN       UM_HANDLE          Mutex
+)
+{
+    return SyscallEntry(SyscallIdGetGlobalVariable, Mutex);
+}
+
+STATUS
+SyscallMutexRelease(
+    IN       UM_HANDLE          Mutex
+)
+{
+    return SyscallEntry(SyscallIdGetGlobalVariable, Mutex);
+}

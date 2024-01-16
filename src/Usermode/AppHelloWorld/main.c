@@ -110,7 +110,7 @@ __main(
     }
     LOG("TEST4 average cpus' utilization : %d", &cpuUtilization);
 
-    status = SyscallProcessGetPid(UM_INVALID_HANDLE_VALUE, &pid);
+    status = SyscallThreadGetPid(UM_INVALID_HANDLE_VALUE, &pid);
     if (!SUCCEEDED(status))
     {
         LOG_FUNC_ERROR("SyscallProcessGetPid", status);
@@ -138,6 +138,98 @@ __main(
 
     //SyscallThreadCloseHandle()
 
+    //Userprog test
+     // Test SyscallProcessExit
+    status = SyscallProcessExit(STATUS_SUCCESS);
+    if (!SUCCEEDED(status)) {
+        LOG_FUNC_ERROR("SyscallProcessExit", status);
+        return;
+    }
+    LOG("SyscallProcessExit test passed.");
+
+    // Test SyscallThreadExit
+    status = SyscallThreadExit(STATUS_SUCCESS);
+    if (!SUCCEEDED(status)) {
+        LOG_FUNC_ERROR("SyscallThreadExit", status);
+        return;
+    }
+    LOG("SyscallThreadExit test passed.");
+
+    // Test SyscallMemset
+    char buffer[10];
+    status = SyscallMemset((PBYTE)buffer, sizeof(buffer), 0xFF);
+    if (!SUCCEEDED(status)) {
+        LOG_FUNC_ERROR("SyscallMemset", status);
+        return;
+    }
+    LOG("SyscallMemset test passed.");
+
+    // Test SyscallProcessCreate
+    UM_HANDLE processHandle;
+    status = SyscallProcessCreate("TestProcess", 0, NULL, 0, &processHandle);
+    if (!SUCCEEDED(status)) {
+        LOG_FUNC_ERROR("SyscallProcessCreate", status);
+        return;
+    }
+    LOG("SyscallProcessCreate test passed. Process handle: %p", processHandle);
+
+    // Test SyscallDisableSyscalls
+    status = SyscallDisableSyscalls(TRUE); // Disable syscalls
+    if (!SUCCEEDED(status)) {
+        LOG_FUNC_ERROR("SyscallDisableSyscalls", status);
+        return;
+    }
+    LOG("SyscallDisableSyscalls test passed. Syscalls disabled.");
+
+    // Test SyscallGetGlobalVariable
+    QWORD value;
+    status = SyscallGetGlobalVariable("TestVariable", 0, &value);
+    if (!SUCCEEDED(status)) {
+        LOG_FUNC_ERROR("SyscallGetGlobalVariable", status);
+        return;
+    }
+    LOG("SyscallGetGlobalVariable test passed. Value: %llu", value);
+
+    // Test SyscallSetGlobalVariable
+    status = SyscallSetGlobalVariable("TestVariable", 0, 42);
+    if (!SUCCEEDED(status)) {
+        LOG_FUNC_ERROR("SyscallSetGlobalVariable", status);
+        return;
+    }
+    LOG("SyscallSetGlobalVariable test passed.");
+
+    // Test SyscallMutexInit
+    UM_HANDLE mutex;
+    status = SyscallMutexInit(&mutex);
+    if (!SUCCEEDED(status)) {
+        LOG_FUNC_ERROR("SyscallMutexInit", status);
+        return;
+    }
+    LOG("SyscallMutexInit test passed. Mutex handle: %p", mutex);
+
+    // Test SyscallMutexAcquire
+    status = SyscallMutexAcquire(mutex);
+    if (!SUCCEEDED(status)) {
+        LOG_FUNC_ERROR("SyscallMutexAcquire", status);
+        return;
+    }
+    LOG("SyscallMutexAcquire test passed.");
+
+    // Test SyscallMutexRelease
+    status = SyscallMutexRelease(mutex);
+    if (!SUCCEEDED(status)) {
+        LOG_FUNC_ERROR("SyscallMutexRelease", status);
+        return;
+    }
+    LOG("SyscallMutexRelease test passed.");
+
+    // Enable syscalls again
+    status = SyscallDisableSyscalls(FALSE);
+    if (!SUCCEEDED(status)) {
+        LOG_FUNC_ERROR("SyscallDisableSyscalls", status);
+        return;
+    }
+    LOG("Syscalls re-enabled.");
     return STATUS_SUCCESS;
 }
 

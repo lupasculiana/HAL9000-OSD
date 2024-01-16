@@ -72,6 +72,7 @@ _CmdReadAndDumpCpuid(
     );
 
 static FUNC_ListFunction _CmdThreadPrint;
+static FUNC_ListFunction _CmdThreadInformationPrint;
 
 void
 (__cdecl CmdListCpus)(
@@ -129,6 +130,7 @@ void
 
     ASSERT(NumberOfParameters == 0);
 
+    //Threads.3
     LOG("%7s", "TID|");
     LOG("%20s", "Name|");
     LOG("%5s", "Prio|");
@@ -139,10 +141,30 @@ void
     LOG("%10s", "Prt ticks|");
     LOG("%10s", "Ttl ticks|");
     LOG("%10s", "Process|");
+    LOG("%10s", "Children|");
     LOG("\n");
 
     status = ThreadExecuteForEachThreadEntry(_CmdThreadPrint, NULL );
     ASSERT( SUCCEEDED(status));
+}
+
+//Threads.4
+void
+(__cdecl CmdThreadInformation)(
+    IN          QWORD       NumberOfParameters
+    )
+{
+    STATUS status;
+
+    ASSERT(NumberOfParameters == 0);
+
+    LOG("%10s", "All Threads Number|");
+    LOG("%10s", "Ready Threads Number|");
+    LOG("%10s", "Blocked Threads Number|");
+    LOG("\n");
+
+    status = ThreadExecuteForEachThreadEntry(_CmdThreadInformationPrint, NULL);
+    ASSERT(SUCCEEDED(status));
 }
 
 void
@@ -697,6 +719,29 @@ STATUS
     LOG("%9U%c", pThread->TickCountEarly, '|');
     LOG("%9U%c", pThread->TickCountCompleted + pThread->TickCountEarly, '|');
     LOG("%9x%c", pThread->Process->Id, '|');
+    LOG("%14s%c", pThread->ChildrenList, '|');
+    LOG("\n");
+
+    return STATUS_SUCCESS;
+}
+
+static
+STATUS
+(__cdecl _CmdThreadInformationPrint) (
+    IN      PLIST_ENTRY     ListEntry,
+    IN_OPT  PVOID           FunctionContext
+    )
+{
+    PTHREAD pThread;
+
+    ASSERT(NULL != ListEntry);
+    ASSERT(NULL == FunctionContext);
+
+    pThread = CONTAINING_RECORD(ListEntry, THREAD, AllList);
+
+    LOG("%9U%c", pThread->AllThreadsNumber, '|');
+    LOG("%9U%c", pThread->ReadyThreadsNumber, '|');
+    LOG("%9U%c", pThread->BlockedThreadsNumber, '|');
     LOG("\n");
 
     return STATUS_SUCCESS;

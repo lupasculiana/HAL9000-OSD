@@ -249,6 +249,12 @@ CpuMuAllocAndInitCpu(
 
     *PhysicalCpu = pPcpu;
 
+    //Thread.8
+    {
+        LOGP("Hello there!\n");
+      //  while (TRUE);
+    }
+
     LOG_FUNC_END;
 
     return status;

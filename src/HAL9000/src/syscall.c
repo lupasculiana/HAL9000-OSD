@@ -20,11 +20,36 @@
 #include "pe_exports.h"
 #include "base.h"
 #include "smp.h"
+#include "mutex.h"
 //#include "thread_defs.h"
 
 extern void SyscallEntry();
 extern PPCPU _CpuReferenceById();
 #define SYSCALL_IF_VERSION_KM       SYSCALL_IMPLEMENTED_IF_VERSION
+
+//Userprog.6
+typedef struct _SYSCALL_SYSTEM_DATA
+{
+    BOOLEAN activateSyscalls;
+    LOCK         AllVariablesLock;
+
+    _Guarded_by_(AllVariablesLock)
+    LIST_ENTRY    sharedVariablesList;
+
+} SYSCALL_SYSTEM_DATA, * PSYSCALL_SYSTEM_DATA;
+
+static SYSCALL_SYSTEM_DATA m_syscallData;
+
+//Userprog.7
+typedef struct _SYSCALL_SHARED_VARIABLE
+{
+    char* VariableName;
+    QWORD sharedValue;
+    LIST_ENTRY    sharedVariablesList;
+
+} SYSCALL_SHARED_VARIABLE, * PSYSCALL_SHARED_VARIABLE;
+
+
 
 void
 SyscallHandler(
@@ -112,6 +137,40 @@ SyscallHandler(
             status = SyscallGetCpuUtilization((BYTE*)pSyscallParameters[0],
                 (BYTE*)pSyscallParameters[1]);
             break;
+        case SyscallIdMemset:
+            status = SyscallMemset((PBYTE)pSyscallParameters[0],
+                (WORD)pSyscallParameters[1],
+                (BYTE)pSyscallParameters[2]);
+            break;
+        case SyscallIdDisableSyscalls:
+            status = SyscallDisableSyscalls((BOOLEAN)pSyscallParameters[0]);
+            break;
+        case SyscallIdProcessCreate:
+            status = SyscallProcessCreate((char*)pSyscallParameters[0],
+                (QWORD)pSyscallParameters[1],
+                (char*)pSyscallParameters[2],
+                (QWORD)pSyscallParameters[3],
+                (UM_HANDLE*)pSyscallParameters[4]);
+            break;
+        case SyscallIdGetGlobalVariable:
+            status = SyscallGetGlobalVariable((char*)pSyscallParameters[0],
+                (DWORD)pSyscallParameters[1],
+                (PQWORD)pSyscallParameters[2]);
+            break;
+        case SyscallIdSetGlobalVariable:
+            status = SyscallSetGlobalVariable((char*)pSyscallParameters[0],
+                (DWORD)pSyscallParameters[1],
+                (QWORD)pSyscallParameters[2]);
+            break;
+        case SyscallIdMutexInit:
+            status = SyscallMutexInit((UM_HANDLE*)pSyscallParameters[0]);
+            break;
+        case SyscallIdMutexAcquire:
+            status = SyscallMutexAcquire((UM_HANDLE)pSyscallParameters[0]);
+            break;
+        case SyscallIdMutexRelease:
+            status = SyscallMutexRelease((UM_HANDLE)pSyscallParameters[0]);
+            break;
         default:
             LOG_ERROR("Unimplemented syscall called from User-space!\n");
             status = STATUS_UNSUPPORTED;
@@ -196,6 +255,8 @@ SyscallCpuInit(
 }
 
 // SyscallIdIdentifyVersion
+//Userprog.1 - " Make the changes required to run user applications: setting up the user stack,
+//implementing SyscallIdIdentifyVersion, SyscallIdProcessExit, and SyscallIdThreadExit."
 STATUS
 SyscallValidateInterface(
     IN  SYSCALL_IF_VERSION          InterfaceVersion
@@ -213,7 +274,7 @@ SyscallValidateInterface(
     return STATUS_SUCCESS;
 }
 
-//TODO
+//Userprog.2 - "Implement the write to UM_FILE_HANDLE_STDOUT system call."
 STATUS
 SyscallFileWrite(
     IN  UM_HANDLE                   FileHandle,
@@ -401,3 +462,225 @@ SyscallGetCpuUtilization(
 
     return STATUS_SUCCESS;
 }
+
+//Userprog.1 - " Make the changes required to run user applications: setting up the user stack,
+//implementing SyscallIdIdentifyVersion, SyscallIdProcessExit, and SyscallIdThreadExit."
+STATUS
+SyscallProcessExit(
+    IN      STATUS                  ExitStatus
+)
+{
+    PPROCESS Process = GetCurrentProcess();
+    Process->TerminationStatus = ExitStatus;
+    ProcessTerminate(Process);
+
+    return STATUS_SUCCESS;
+}
+
+//Userprog.1 - " Make the changes required to run user applications: setting up the user stack,
+//implementing SyscallIdIdentifyVersion, SyscallIdProcessExit, and SyscallIdThreadExit."
+STATUS
+SyscallThreadExit(
+    IN  STATUS                      ExitStatus
+)
+{
+    ThreadExit(ExitStatus);
+
+    return STATUS_SUCCESS;
+}
+
+//Userprog.4 - "Implement a system call SyscallIdMemset which effectively does a memset on a requested virtual address. 
+//In the corresponding system call handler check if the pointer receives as a parameter is valid or not." 
+STATUS
+SyscallMemset(
+    OUT_WRITES(BytesToWrite)    PBYTE   Address,
+    IN                          DWORD   BytesToWrite,
+    IN                          BYTE    ValueToWrite
+)
+{
+    if (&BytesToWrite == NULL || &ValueToWrite == NULL ||  MmuIsBufferValid(Address, strlen((char*)Address), PAGE_RIGHTS_WRITE, GetCurrentProcess()))
+    {
+        return STATUS_UNSUCCESSFUL;
+    }
+
+    memset(Address, ValueToWrite, BytesToWrite);
+    return STATUS_SUCCESS;
+}
+
+//Userprog.5 - "Maintain the list of children for each process. If the parent of a process dies,
+//you should move the dying process children to have as the parent the system process."
+STATUS
+SyscallProcessCreate(
+    IN_READS_Z(PathLength)
+    char* ProcessPath,
+    IN          QWORD               PathLength,
+    IN_READS_OPT_Z(ArgLength)
+    char* Arguments,
+    IN          QWORD               ArgLength,
+    OUT         UM_HANDLE* ProcessHandle
+)
+{
+
+    if (m_syscallData.activateSyscalls) {
+        PPROCESS pProcess;
+        INTR_STATE oldIntrState;
+
+        if (PathLength <= 0 || ArgLength <= 0) {
+            return STATUS_INVALID_PARAMETER1;
+        }
+
+        STATUS status = ProcessCreate(ProcessPath, Arguments, &pProcess);
+
+        if (!SUCCEEDED(status))
+        {
+            LOG_FUNC_ERROR("Process creation failed", status);
+
+            return STATUS_UNSUCCESSFUL;
+        }
+
+        LockAcquire(&GetCurrentProcess()->ChildrenListLock, &oldIntrState);
+        InsertTailList(&GetCurrentProcess()->ChildrenList, (PLIST_ENTRY)pProcess);
+        LockRelease(&GetCurrentProcess()->ChildrenListLock, oldIntrState);
+
+        *ProcessHandle = (UM_HANDLE)pProcess;
+    }
+    
+    return STATUS_SUCCESS;
+}
+
+//Userprog.6 - "Implement a new system call SyscallIdDisableSyscalls
+// which depending on the parameter either disables all other system calls effectively causing them to fail or enables them."
+STATUS
+SyscallDisableSyscalls(
+    IN      BOOLEAN     Disable
+)
+{
+    // When Disable == TRUE => all system calls except SyscallDisableSyscalls will fail
+    // When Disable == FALSE => all system calls work normally
+    if (Disable == TRUE || Disable == FALSE) {
+        m_syscallData.activateSyscalls = Disable;
+    }
+    else {
+        return STATUS_INVALID_PARAMETER1;
+    }
+    
+    return STATUS_SUCCESS;
+    //all syscalls's code should be included in an if(m_syscallData.activateSyscalls){ ...existing code} to check whether they are enabled or disabled
+    //I included this example on the previous syscall, SyscallProcessCreate, and will include in upcoming syscalls
+}
+
+//Userprog.7 - "Implement two system calls SyscallIdSetGlobalVariable and SyscallIdGetGlobalVariable for processes to be able to share information."
+STATUS
+SyscallGetGlobalVariable(
+    IN_READS_Z(VarLength)           char* VariableName,
+    IN                              DWORD   VarLength,
+    OUT                             PQWORD  Value
+)
+{
+    PLIST_ENTRY pListEntry;
+    INTR_STATE oldState;
+    PSYSCALL_SHARED_VARIABLE variable;
+
+    LockAcquire(&m_syscallData.AllVariablesLock, &oldState);
+    pListEntry = m_syscallData.sharedVariablesList.Flink;
+
+    while (pListEntry != &m_syscallData.sharedVariablesList)
+    {
+        variable = CONTAINING_RECORD(pListEntry, SYSCALL_SHARED_VARIABLE, sharedVariablesList);
+            if (strcmp(variable->VariableName, VariableName) == 0)
+            {
+                Value = &variable->sharedValue;
+                LockRelease(&m_syscallData.AllVariablesLock, oldState);
+            }
+            pListEntry = pListEntry->Flink;
+
+    }
+    LockRelease(&m_syscallData.AllVariablesLock, oldState);
+    UNREFERENCED_PARAMETER(VarLength);
+    return STATUS_SUCCESS;
+}
+
+STATUS
+SyscallSetGlobalVariable(
+    IN_READS_Z(VarLength)           char* VariableName,
+    IN                              DWORD   VarLength,
+    IN                              QWORD   Value
+)
+{
+    PLIST_ENTRY pListEntry;
+    INTR_STATE oldState;
+    PSYSCALL_SHARED_VARIABLE variable;
+
+    LockAcquire(&m_syscallData.AllVariablesLock, &oldState);
+    pListEntry = m_syscallData.sharedVariablesList.Flink;
+
+    while (pListEntry != &m_syscallData.sharedVariablesList)
+    {
+        variable = CONTAINING_RECORD(pListEntry, SYSCALL_SHARED_VARIABLE, sharedVariablesList);
+        if (variable == NULL) {
+            strcpy(variable->VariableName,VariableName);
+            variable->sharedValue = Value;
+            InsertTailList(&m_syscallData.sharedVariablesList, &variable->sharedVariablesList);
+        }
+        else {
+            if (strcmp(variable->VariableName, VariableName) == 0)
+            {
+                variable->sharedValue = Value;
+                LockRelease(&m_syscallData.AllVariablesLock, oldState);
+            }
+            pListEntry = pListEntry->Flink;
+        }
+       
+    }
+    LockRelease(&m_syscallData.AllVariablesLock, oldState);
+    UNREFERENCED_PARAMETER(VarLength);
+
+    return STATUS_SUCCESS;
+}
+
+//Userprog.8
+STATUS
+SyscallMutexInit(
+    OUT         UM_HANDLE* Mutex
+)
+{
+    if (Mutex != UM_INVALID_HANDLE_VALUE) {
+       MutexInit((PMUTEX)Mutex, TRUE);
+    }
+    else {
+        return STATUS_INVALID_PARAMETER1;
+    }
+
+    return STATUS_SUCCESS;
+}
+
+STATUS
+SyscallMutexAcquire(
+    IN       UM_HANDLE          Mutex
+)
+{
+    if (Mutex != UM_INVALID_HANDLE_VALUE) {
+        MutexAcquire((PMUTEX)Mutex);
+    }
+    else {
+        return STATUS_INVALID_PARAMETER1;
+    }
+
+    return STATUS_SUCCESS;
+}
+
+STATUS
+SyscallMutexRelease(
+    IN       UM_HANDLE          Mutex
+)
+{
+    if (Mutex != UM_INVALID_HANDLE_VALUE) {
+        MutexRelease((PMUTEX)Mutex);
+    }
+    else {
+        return STATUS_INVALID_PARAMETER1;
+    }
+
+    return STATUS_SUCCESS;
+}
+

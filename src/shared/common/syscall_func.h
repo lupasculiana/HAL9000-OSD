@@ -382,3 +382,103 @@ SyscallGetCpuUtilization(
     IN_OPT BYTE* CpuId,
     OUT BYTE* Utilization
 );
+
+//Userprog.4
+// SyscallIdMemset
+// ******************************************************************************
+// Function : SyscallMemset
+// Description : Does a memset on a requested virtual address
+// Returns : STATUS
+// Parameter : IN DWORD BytesToWrite
+// Parameter : IN Byte ValueToWrite
+// Parameter : OUT_WRITES(BytesToWrite) PBYTE Address
+// ***************************** 
+STATUS
+SyscallMemset(
+    OUT_WRITES(BytesToWrite)    PBYTE   Address,
+    IN                          DWORD   BytesToWrite,
+    IN                          BYTE    ValueToWrite
+);
+
+//Userprog.6
+// SyscallIdDisableSyscalls
+// ******************************************************************************
+// Function : SyscallDisableSyscalls
+// Description : Depending on the parameter either disables all other system calls effectively causing them to fail or enables them
+// Returns : STATUS
+// Parameter : IN BOOLEAN Disable
+// ***************************** 
+STATUS
+SyscallDisableSyscalls(
+    IN      BOOLEAN     Disable
+);
+
+//Userprog7
+//SyscallIdGetGlobalVariable
+// ******************************************************************************
+// Function : SyscallGetGlobalVariable
+// Description : Allows processes to be able to share information between them
+// Returns : STATUS
+// Parameter : IN char* VariableName
+// Parameter : IN DWORD VarLength
+// Parameter : OUT PQWORD Value
+// ***************************** 
+STATUS
+SyscallGetGlobalVariable(
+    IN_READS_Z(VarLength)           char* VariableName,
+    IN                              DWORD   VarLength,
+    OUT                             PQWORD  Value
+);
+
+//SyscallIdSetGlobalVariable 
+// ******************************************************************************
+// Function : SyscallSetGlobalVariable
+// Description : Allows processes to be able to share information between them
+// Returns : STATUS
+// Parameter : IN_READS_Z char* VariableName
+// Parameter : IN DWORD VarLength
+// Parameter : IN PQWORD Value
+// ***************************** 
+STATUS
+SyscallSetGlobalVariable(
+    IN_READS_Z(VarLength)           char* VariableName,
+    IN                              DWORD   VarLength,
+    IN                              QWORD   Value
+);
+
+//Userprog.8
+// SyscallIdMutexInit
+// ******************************************************************************
+// Function : SyscallMutexInit
+// Description : Exposes mutex synchronization mechanisms to user applications
+// Returns : STATUS
+// Parameter : OUT UM_HANDLE Mutex
+// ***************************** 
+STATUS
+SyscallMutexInit(
+    OUT         UM_HANDLE* Mutex
+);
+
+//SyscallIdMutexAcquire
+// ******************************************************************************
+// Function : SyscallMutexAcquire
+// Description : Exposes mutex synchronization mechanisms to user applications
+// Returns : STATUS
+// Parameter : IN UM_HANDLE Mutex
+// ***************************** 
+STATUS
+SyscallMutexAcquire(
+    IN       UM_HANDLE          Mutex
+);
+
+//SyscallIdMutexRelease
+// ******************************************************************************
+// Function : SyscallMutexRelease
+// Description : Exposes mutex synchronization mechanisms to user applications
+// Returns : STATUS
+// Parameter : IN UM_HANDLE Mutex
+// ***************************** 
+STATUS
+SyscallMutexRelease(
+    IN       UM_HANDLE          Mutex
+);

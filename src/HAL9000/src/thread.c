@@ -12,6 +12,9 @@
 
 #define TID_INCREMENT               8
 
+#define TID_DECREMENT               -1
+
+#
 //When a thread is created, it should have a time quantum of 4 ticks.
 #define THREAD_TIME_SLICE           4
 
@@ -37,6 +40,14 @@ typedef struct _THREAD_SYSTEM_DATA
 
     _Guarded_by_(ReadyThreadsLock)
     LIST_ENTRY          ReadyThreadsList;
+
+    //Threads.4
+    //All existing threads in the system
+    DWORD                   AllThreadsNumber;
+    //All ready threads in the system
+    DWORD                   ReadyThreadsNumber;
+    //All blocked threads in the system
+    DWORD                   BlockedThreadsNumber;
 } THREAD_SYSTEM_DATA, *PTHREAD_SYSTEM_DATA;
 
 static THREAD_SYSTEM_DATA m_threadSystemData;
@@ -48,9 +59,11 @@ _ThreadSystemGetNextTid(
     void
     )
 {
-    static volatile TID __currentTid = 0;
+    //Threads.1
+     static volatile TID __currentTid = 0;
+   // static volatile TID __currentTid = MAX_QWORD; makes HAL9000 break for some reason, but this is what should have been instead of 0
 
-    return _InterlockedExchangeAdd64(&__currentTid, TID_INCREMENT);
+    return _InterlockedExchangeAdd64(&__currentTid, TID_DECREMENT);
 }
 
 static
@@ -247,6 +260,7 @@ ThreadSystemInitIdleForCurrentCPU(
     LOGPL("About to enable interrupts\n");
 
     // lets enable some interrupts :)
+    //Threads.8 - we can comment this line to disable interrupts, and replace it with CpuIntrDisable();
     CpuIntrEnable();
 
     LOGPL("Interrupts enabled :)\n");
@@ -295,6 +309,7 @@ ThreadCreateEx(
     PVOID pStartFunction;
     QWORD firstArg;
     QWORD secondArg;
+    INTR_STATE oldState;
 
     if (NULL == Name)
     {
@@ -419,13 +434,26 @@ ThreadCreateEx(
 
     //update number of active children
     GetCurrentThread()->NumberOfChildrenCreated++;
+
+    //Threads.3
+    //LIST_ENTRY KidsList = GetCurrentThread()->ChildrenList;
+   // LockAcquire(&GetCurrentThread()->AllChildrenLock, &oldState);
+   // InsertHeadList(&KidsList, &pThread->AllList);
+   // LockRelease(&GetCurrentThread()->AllChildrenLock, oldState);
+   
+    UNREFERENCED_PARAMETER(oldState);
     _InterlockedIncrement(&GetCurrentThread()->NumberOfActiveChildren);
+    
+    //Threads.1
     LOG(" Thread [ID =%d] is the %d th thread created by thread [ID =%d] on CPU [%d]",
         pThread->Id, GetCurrentThread()->NumberOfChildrenCreated,
         pThread->ParentId,
         pThread->CreationCpuApicId
     );
    
+    //Threads.4
+    _InterlockedIncrement(&m_threadSystemData.AllThreadsNumber);
+    pThread->AllThreadsNumber = m_threadSystemData.AllThreadsNumber;
     return status;
 }
 
@@ -502,6 +530,9 @@ ThreadYield(
 
     ASSERT( NULL != pThread);
 
+    //Threads.2
+    _InterlockedIncrement(&pThread->TimesYielded);
+
     oldState = CpuIntrDisable();
 
     pCpu = GetCurrentPcpu();
@@ -520,6 +551,9 @@ ThreadYield(
     LockAcquire(&m_threadSystemData.ReadyThreadsLock, &dummyState);
     if (pThread != pCpu->ThreadData.IdleThread)
     {
+        //Threads.4
+        _InterlockedIncrement(&m_threadSystemData.ReadyThreadsNumber);
+        pThread->ReadyThreadsNumber = m_threadSystemData.AllThreadsNumber;
         InsertTailList(&m_threadSystemData.ReadyThreadsList, &pThread->ReadyList);
     }
     if (!bForcedYield)
@@ -543,6 +577,10 @@ ThreadBlock(
     PTHREAD pCurrentThread;
 
     pCurrentThread = GetCurrentThread();
+
+    //Threads.4
+    _InterlockedIncrement(&m_threadSystemData.BlockedThreadsNumber);
+    pCurrentThread->BlockedThreadsNumber = m_threadSystemData.BlockedThreadsNumber;
 
     ASSERT( INTR_OFF == CpuIntrGetState());
     ASSERT(LockIsOwner(&pCurrentThread->BlockLock));
@@ -611,7 +649,8 @@ ThreadExit(
         _ThreadDereference(pParent);
     }
 
-    LOG("Thread [ID=%d] was allocated %d time quanta\n", pThread->Id, pThread->AllocatedQuanta);
+    //Threads.2
+    LOG("Thread [ID=%d] yielded %u times was allocated %d time quanta\n", pThread->TimesYielded, pThread->Id, pThread->AllocatedQuanta);
 
     CpuIntrDisable();
 
@@ -1016,6 +1055,8 @@ _ThreadSetupInitialState(
 //  |                 Dummy RA = 0xDEADC0DE                         |
 //  -----------------------------------------------------------------
 //  USER STACK BASE
+//Userprog.1 - " Make the changes required to run user applications: setting up the user stack,
+//implementing SyscallIdIdentifyVersion, SyscallIdProcessExit, and SyscallIdThreadExit."
 static
 STATUS
 _ThreadSetupMainThreadUserStack(
@@ -1081,6 +1122,7 @@ _ThreadSchedule(
         SetCurrentThread(pNextThread);
         ThreadSwitch( &pCurrentThread->Stack, pNextThread->Stack);
 
+        //Threads.8 - we would have to comment this line to disable interrupts for CPU's
         ASSERT(INTR_OFF == CpuIntrGetState());
         ASSERT(LockIsOwner(&m_threadSystemData.ReadyThreadsLock));
 
